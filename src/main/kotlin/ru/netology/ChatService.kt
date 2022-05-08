@@ -4,7 +4,7 @@ object ChatService {
     var chatList: MutableList<Chat> = mutableListOf()
     var userList: MutableList<User> = mutableListOf()
     var userService = createUser("MeUser")
-    fun clear(){
+    fun clear() {
 
         chatList = mutableListOf()
         userList = mutableListOf()
@@ -29,7 +29,7 @@ object ChatService {
     private fun getUser(userId: Int): User? = userList.find { it.id == userId }
 
     fun createChat(user: User): Chat {
-        if(user== userService) throw RuntimeException("Чат с самим собой невозможен!")
+        if (user == userService) throw RuntimeException("Чат с самим собой невозможен!")
         var chat = chatList.find { it.userSecond == user }
         return if (chat == null) {
             chat = Chat(userFirst = userService, userSecond = user, id = getNextId(chatList))
@@ -40,7 +40,7 @@ object ChatService {
 
 
     fun deleteChat(idChat: Int): Boolean {
-        var chat = chatList.find { it.id == idChat } ?: throw ElementNotFoundException(idChat)
+        val chat = chatList.find { it.id == idChat } ?: throw ElementNotFoundException(idChat)
         val index = chatList.indexOf(chat)
         val chatCopy = chat.copy(isDeleted = true)
         chatCopy.messages.forEach {
@@ -53,38 +53,41 @@ object ChatService {
     }
 
     fun getChats(): List<Chat> =
-        chatList.filter { !it.isDeleted && it.messages.find { message -> !message.isDeleted } != null }
+        // chatList.filter { !it.isDeleted && it.messages.find { message -> !message.isDeleted } != null }
+        chatList.asSequence()
+            .filter { !it.isDeleted }
+            .filter { it.messages.find { message -> !message.isDeleted } != null }.toList()
 
     fun getChatUser(userId: Int): Chat? = chatList.find { it.userSecond.id == userId }
 
-/*
-    fun addMessageFromUser(userId: Int, message: String): Boolean {
-        val user = getUser(userId) ?: throw ElementNotFoundException(userId)
-        val chat = createChat(user)
-        return chatList[chatList.indexOf(chat)].messages.add(
-            Message(
-                message,
-                id = getNextId(chat.messages),
-                fromUserId = userId,
-                toUserId = userService.id
+    /*
+        fun addMessageFromUser(userId: Int, message: String): Boolean {
+            val user = getUser(userId) ?: throw ElementNotFoundException(userId)
+            val chat = createChat(user)
+            return chatList[chatList.indexOf(chat)].messages.add(
+                Message(
+                    message,
+                    id = getNextId(chat.messages),
+                    fromUserId = userId,
+                    toUserId = userService.id
+                )
             )
-        )
-    }
+        }
 
-    fun addMessageToUser(userId: Int, message: String): Boolean {
-        val user = getUser(userId) ?: throw ElementNotFoundException(userId)
-        val chat = createChat(user)
-        return chatList[chatList.indexOf(chat)].messages.add(
-            Message(
-                message,
-                id = getNextId(chat.messages),
-                fromUserId = userService.id,
-                toUserId = userId
+        fun addMessageToUser(userId: Int, message: String): Boolean {
+            val user = getUser(userId) ?: throw ElementNotFoundException(userId)
+            val chat = createChat(user)
+            return chatList[chatList.indexOf(chat)].messages.add(
+                Message(
+                    message,
+                    id = getNextId(chat.messages),
+                    fromUserId = userService.id,
+                    toUserId = userId
+                )
             )
-        )
-    }
+        }
 
-*/
+    */
     fun deleteMessage(idMessage: Int, idChat: Int): Boolean {
         val chat: Chat = chatList.find { it.id == idChat } ?: throw ElementNotFoundException(idChat)
         val message = chat.messages.find { it.id == idMessage } ?: throw ElementNotFoundException(idChat)
@@ -133,7 +136,7 @@ object ChatService {
         val chat = chatList.find { it.id == idChat && !it.isDeleted } ?: throw ElementNotFoundException(idChat)
         val listMessages = chatList[chatList.indexOf(chat)].messages
 
-        val messages = chat.messages.takeLastWhile { it.id != idMessage && !it.isDeleted }
+        val messages = chat.messages.asSequence().filter { it.id >= idMessage && !it.isDeleted }
             .take(count).map { if (it.toUserId == userService.id) it.apply { isRead = true } else it }
 
         listMessages.forEach {
@@ -143,7 +146,7 @@ object ChatService {
             }
 
         }
-        return messages
+        return messages.toList()
     }
 
     fun createMessage(toUserId: Int, fromUserId: Int, message: String): Message {
